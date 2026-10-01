@@ -213,7 +213,8 @@ function tunnelStart(r,c){return P.tunnels.some(t=>t.r===r&&t.c===c)}
 function remaining(){let s=P.inv.S,x=P.inv.X;
   for(let r=0;r<P.rows;r++)for(let c=0;c<P.cols;c++){if(fixed[r][c])continue;if(grid[r][c]==='S')s--;if(grid[r][c]==='XL')x--}
   return{S:s,X:x}}
-let ZF=.9;
+let ZF=.9;let VW=window.innerWidth,VH=window.innerHeight;
+function stageTop(){return document.querySelector('.stage').getBoundingClientRect().top+window.scrollY}
 function sizeBoard(){
   const mobile=window.innerWidth<=640;
   const land=!mobile&&window.innerHeight<=520&&window.innerWidth>window.innerHeight;
@@ -226,13 +227,13 @@ function sizeBoard(){
   if(mobile){
     const dockH=document.querySelector('.dock').offsetHeight||110;
     document.querySelector('.wrap').style.paddingBottom=(dockH+16)+'px';
-    const top=document.querySelector('.stage').getBoundingClientRect().top+window.scrollY;
-    const availH=window.innerHeight-Math.max(dockH,100)-top-pad-16;
+    const top=stageTop();
+    const availH=VH-Math.max(dockH,100)-top-pad-16;
     cs=Math.max(34,Math.min(cs,Math.floor(availH/(P.rows+2*ZF))));
   }else if(land){
     document.querySelector('.wrap').style.paddingBottom='';
-    const top=document.querySelector('.stage').getBoundingClientRect().top+window.scrollY;
-    cs=Math.max(30,Math.min(cs,Math.floor((window.innerHeight-top-pad-10)/(P.rows+2*ZF))));
+    const top=stageTop();
+    cs=Math.max(30,Math.min(cs,Math.floor((VH-top-pad-10)/(P.rows+2*ZF))));
   }else{document.querySelector('.wrap').style.paddingBottom='';if(window.innerWidth>900)cs=Math.min(cs,Math.floor((window.innerHeight-250)/(P.rows+2*ZF)))}
   cs=Math.max(30,Math.min(76,cs));
   root.style.setProperty('--cs',cs+'px');
@@ -301,7 +302,7 @@ function removeAt(r,c){if(busy)return;placeBallsAtStart();
   if(grid[r][c]==='XL'){grid[r][c]=null;grid[r][c+1]=null}else grid[r][c]=null;render();setMsg('')}
 function ballEls(){const L=$('balls');L.innerHTML='';return P.balls.map(b=>{const d=document.createElement('div');d.className='ball';d.style.backgroundColor=COL[b.color];d.textContent=CNUM[b.color];L.appendChild(d);return d})}
 function cs(){return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cs'))}
-function setPos(el,x,y){const s=cs();el.style.left=(x*s)+'px';el.style.top=(ZF*s+y*s)+'px'}
+function setPos(el,x,y){el._x=x;el._y=y;const s=cs();el.style.left=(x*s)+'px';el.style.top=(ZF*s+y*s)+'px'}
 function placeBallsAtStart(){stopAnim();setCleared(false);busy=false;setDisabled(false);const els=ballEls();P.balls.forEach((b,i)=>setPos(els[i],b.lane+.5,-.45))}
 function pathOf(b){
   let l=b.lane;const pts=[{x:l+.5,y:-.45,h:false},{x:l+.5,y:0,h:false}];
@@ -353,7 +354,14 @@ $('reset').onclick=()=>{stopAnim();busy=false;setDisabled(false);grid=P.grid.map
 $('answer').onclick=()=>{grid=P.solution.map(r=>r.slice());placeBallsAtStart();render();setMsg('こたえを置きました。転がして確かめよう。')};
 function goNext(){const order=['easy','normal','hard'];if(idx<DATA[lv].length-1)idx++;else{const j=order.indexOf(lv);if(j<2){lv=order[j+1];idx=0}}load()}
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{lv=b.dataset.lv;idx=0;load()});
-let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(!busy){const c=cleared;sizeBoard();placeBallsAtStart();if(c)setCleared(true)}},150)});
+let rt;function onViewport(){clearTimeout(rt);rt=setTimeout(()=>{
+  const w=window.innerWidth,h=window.innerHeight;
+  // スクロールでアドレスバーが出入りするだけの高さ変化は無視する
+  if(w===VW&&Math.abs(h-VH)<160)return;
+  VW=w;VH=h;sizeBoard();
+  document.querySelectorAll('.ball').forEach(el=>{if(el._x!==undefined)setPos(el,el._x,el._y)});
+},150)}
+window.addEventListener('resize',onViewport);window.addEventListener('orientationchange',onViewport);
 load();
 </script>
 </body>
